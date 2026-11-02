@@ -22,10 +22,11 @@ from app.models.pharmacy import Medicine, MedicineBatch, StockMovement
 from app.auth.password import get_password_hash
 
 
-async def seed():
-    print("[INIT] Re-initializing Database Schema for Utkal Hospital...")
+async def seed(drop_first: bool = False):
+    print("[INIT] Initializing Database Schema for Utkal Hospital...")
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        if drop_first:
+            await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_maker() as db:
@@ -421,4 +422,4 @@ async def seed():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    asyncio.run(seed(drop_first=True))

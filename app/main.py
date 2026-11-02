@@ -64,30 +64,12 @@ class PathNormalizationMiddleware:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}...")
-    # Initialize database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    from app.database import init_db
+    await init_db()
     logger.info("Database schema validated and initialized.")
-
-    # On Vercel serverless, auto-seed clean demo records into ephemeral database
-    if os.environ.get("VERCEL"):
-        try:
-            from sqlalchemy import select, func
-            from app.models.user import User
-            from app.database import async_session_maker
-            async with async_session_maker() as session:
-                user_count = await session.scalar(select(func.count(User.id)))
-            if not user_count:
-                from scripts.seed import seed
-                logger.info("Vercel serverless environment detected: seeding demo clinical data...")
-                await seed()
-        except Exception as e:
-            try:
-                from scripts.seed import seed
-                logger.info("Vercel auto-seed retry: seeding demo clinical data...")
-                await seed()
-            except Exception as inner_e:
-                logger.warning(f"Vercel auto-seed notice: {inner_e}")
+    yield
+    logger.info("Shutting down application...")
+    await engine.dispose()
 
     yield
     logger.info("Shutting down application...")
