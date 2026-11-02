@@ -33,6 +33,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger("hospital.app")
 
+# Base directory for absolute path resolution across local and serverless environments
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+
+class PathNormalizationMiddleware:
+    """
+    Normalizes incoming request paths for Vercel Serverless environment.
+    Strips leading /api/index.py or /api/index prefixes so FastAPI routes match cleanly.
+    """
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            path = scope.get("path", "")
+            for prefix in ("/api/index.py", "/api/index"):
+                if path.startswith(prefix):
+                    new_path = path[len(prefix):]
+                    if not new_path or not new_path.startswith("/"):
+                        new_path = "/" + new_path.lstrip("/")
+                    scope["path"] = new_path
+                    if "raw_path" in scope:
+                        scope["raw_path"] = new_path.encode("utf-8")
+                    break
+        await self.app(scope, receive, send)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,14 +69,25 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database schema validated and initialized.")
 
-    # On Vercel serverless, auto-seed clean demo records into ephemeral /tmp/hospital.db
+    # On Vercel serverless, auto-seed clean demo records into ephemeral database
     if os.environ.get("VERCEL"):
         try:
-            from scripts.seed import seed
-            logger.info("Vercel serverless environment detected: seeding demo clinical data...")
-            await seed()
+            from sqlalchemy import select, func
+            from app.models.user import User
+            from app.database import async_session_maker
+            async with async_session_maker() as session:
+                user_count = await session.scalar(select(func.count(User.id)))
+            if not user_count:
+                from scripts.seed import seed
+                logger.info("Vercel serverless environment detected: seeding demo clinical data...")
+                await seed()
         except Exception as e:
-            logger.warning(f"Vercel auto-seed notice: {e}")
+            try:
+                from scripts.seed import seed
+                logger.info("Vercel auto-seed retry: seeding demo clinical data...")
+                await seed()
+            except Exception as inner_e:
+                logger.warning(f"Vercel auto-seed notice: {inner_e}")
 
     yield
     logger.info("Shutting down application...")
@@ -92,6 +130,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+# Path Normalization Middleware for Vercel
+app.add_middleware(PathNormalizationMiddleware)
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -121,9 +162,15 @@ try:
     os.makedirs(upload_dir, exist_ok=True)
 except Exception:
     pass
-os.makedirs("static", exist_ok=True)
+
+try:
+    os.makedirs(STATIC_DIR, exist_ok=True)
+except Exception:
+    pass
+
 app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/health", tags=["Health"])
@@ -137,9 +184,14 @@ async def health_check():
 
 
 @app.get("/", include_in_schema=False)
+@app.get("/api/index.py", include_in_schema=False)
+@app.get("/api/index", include_in_schema=False)
 async def root():
     # If interactive frontend exists, serve it; else redirect to /docs
-    index_file = os.path.join("static", "app", "index.html")
+    index_file = os.path.join(STATIC_DIR, "app", "index.html")
     if os.path.exists(index_file):
-        return FileResponse(index_file)
+        return FileResponse(index_file, media_type="text/html")
+    fallback_index = os.path.join("static", "app", "index.html")
+    if os.path.exists(fallback_index):
+        return FileResponse(fallback_index, media_type="text/html")
     return {"message": "Welcome to Hospital Management API", "docs": "/docs", "health": "/health"}
