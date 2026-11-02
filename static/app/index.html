@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utkal Hospital & Medical Research Centre | Hospital & Clinic Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app/css/style.css">
+</head>
+<body>
+<!-- Fullscreen Role-Based Login Gate -->
+<div class="login-gate-overlay" id="loginScreenGate">
+  <div class="login-gate-card">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="width:56px; height:56px; border-radius:16px; background:#CCFBF1; color:#0D9488; font-size:28px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px; box-shadow:0 8px 20px rgba(13,148,136,0.2);">🏥</div>
+      <h1 style="font-size:20px; font-weight:800; color:#0F172A; margin-bottom:4px;" id="loginGateHospitalTitle">Utkal Hospital & Medical Research Centre</h1>
+      <p style="font-size:13px; color:#64748B;">Clinical Health Suite • Please sign in to access your portal</p>
+    </div>
+
+    <!-- Quick Role Selection Cards with Password clearly displayed -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Select Role Account:</div>
+      <div class="login-preset-grid">
+        <div class="login-preset-card active" id="presetCard-admin" onclick="selectLoginGatePreset('admin')">
+          <div class="login-preset-icon">👑</div>
+          <div>
+            <div style="font-weight:700; font-size:13px; color:#0F172A;">Admin</div>
+            <div style="font-size:11px; color:#64748B;">Pwd: <code style="color:#0D9488; font-weight:700;">admin123</code></div>
+          </div>
+        </div>
+
+        <div class="login-preset-card" id="presetCard-doctor" onclick="selectLoginGatePreset('doctor')">
+          <div class="login-preset-icon" style="background:#DBEAFE; color:#2563EB;">🩺</div>
+          <div>
+            <div style="font-weight:700; font-size:13px; color:#0F172A;">Doctor</div>
+            <div style="font-size:11px; color:#64748B;">Pwd: <code style="color:#2563EB; font-weight:700;">doctor123</code></div>
+          </div>
+        </div>
+
+        <div class="login-preset-card" id="presetCard-receptionist" onclick="selectLoginGatePreset('receptionist')">
+          <div class="login-preset-icon" style="background:#FEF3C7; color:#D97706;">📋</div>
+          <div>
+            <div style="font-weight:700; font-size:13px; color:#0F172A;">Receptionist</div>
+            <div style="font-size:11px; color:#64748B;">Pwd: <code style="color:#D97706; font-weight:700;">reception123</code></div>
+          </div>
+        </div>
+
+        <div class="login-preset-card" id="presetCard-patient" onclick="selectLoginGatePreset('patient')">
+          <div class="login-preset-icon" style="background:#DEF7EC; color:#059669;">🧑‍🦽</div>
+          <div>
+            <div style="font-weight:700; font-size:13px; color:#0F172A;">Patient</div>
+            <div style="font-size:11px; color:#64748B;">Pwd: <code style="color:#059669; font-weight:700;">patient123</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Alert Box -->
+    <div id="loginGateAlert" style="display:none; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:600; margin-bottom:16px; background:#FEE2E2; color:#991B1B; border:1px solid #FCA5A5;"></div>
+
+    <!-- Login Form -->
+    <form id="loginGateForm">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label" style="font-size:12px; font-weight:700; color:#334155;">User Email ID</label>
+        <input type="email" class="form-control" id="loginGateEmail" value="admin@hospital.com" required autocomplete="username" style="font-size:14px; padding:10px 14px;">
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label class="form-label" style="font-size:12px; font-weight:700; color:#334155; margin:0;">Password</label>
+          <span id="loginGateHintBadge" style="font-size:11px; color:#0D9488; font-weight:700; cursor:pointer;" onclick="fillGateDemoPassword()">Click to fill password</span>
+        </div>
+        <input type="password" class="form-control" id="loginGatePassword" placeholder="Enter password to log in" required autocomplete="current-password" style="font-size:14px; padding:10px 14px;">
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="loginGateSubmitBtn" style="width:100%; padding:12px; font-size:15px; font-weight:700; justify-content:center; border-radius:12px;">
+        Sign In & Access Portal →
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="app-container" id="mainAppContainer">
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-icon">🏥</div>
+      <div class="brand-text">
+        <h2 id="brandHospitalName" style="font-size:15px; font-weight:800; line-height:1.2;">Utkal Hospital</h2>
+        <p id="brandHospitalSubtitle" style="font-size:11px; color:#64748B;">Clinical Health Suite</p>
+      </div>
+    </div>
+
+    <nav class="nav-menu" id="mainSidebarMenu">
+      <a class="nav-item active" id="nav-dashboard" onclick="switchPage('dashboard')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        <span id="navTextDashboard">Dashboard</span>
+      </a>
+      <a class="nav-item" id="nav-patients" onclick="switchPage('patients')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <span id="navTextPatients">Patients Directory</span>
+      </a>
+      <a class="nav-item" id="nav-appointments" onclick="switchPage('appointments')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span id="navTextAppointments">Appointments & Visits</span>
+      </a>
+      <a class="nav-item" id="nav-doctors" onclick="switchPage('doctors')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span id="navTextDoctors">Doctors & Faculty</span>
+      </a>
+      <a class="nav-item" id="nav-prescriptions" onclick="switchPage('prescriptions')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span id="navTextPrescriptions">Prescriptions (℞)</span>
+      </a>
+      <a class="nav-item" id="nav-lab-reports" onclick="switchPage('lab-reports')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        <span id="navTextLabReports">Diagnostic Lab Reports</span>
+      </a>
+      <a class="nav-item" id="nav-billing" onclick="switchPage('billing')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        <span id="navTextBilling">Billing & Invoices</span>
+      </a>
+      <a class="nav-item" id="nav-pharmacy" onclick="switchPage('pharmacy')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span id="navTextPharmacy">Pharmacy Stock</span>
+      </a>
+      <a class="nav-item" id="nav-settings" onclick="switchPage('settings')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span id="navTextSettings">Settings & Hospital Name</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Wrapper -->
+  <main class="main-wrapper">
+    <!-- Navbar -->
+    <header class="top-navbar">
+      <div class="search-box">
+        <svg width="18" height="18" fill="none" stroke="#94A3B8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="globalSearchInput" placeholder="Live search across patients, doctors, appointments, medicines...">
+      </div>
+
+      <div class="navbar-actions">
+        <!-- Role Switcher: Opens Login Dialog requiring credentials -->
+        <div style="display:flex; align-items:center; gap:6px; background:#F1F5F9; padding:4px 8px; border-radius:8px;">
+          <span style="font-size:11px; font-weight:700; color:#64748B;">Role:</span>
+          <button type="button" class="role-pill-btn active" id="roleBtn-admin" onclick="openLoginScreen('admin')" title="Switch to Admin">Admin</button>
+          <button type="button" class="role-pill-btn" id="roleBtn-doctor" onclick="openLoginScreen('doctor')" title="Switch to Doctor">Doctor</button>
+          <button type="button" class="role-pill-btn" id="roleBtn-receptionist" onclick="openLoginScreen('receptionist')" title="Switch to Receptionist">Receptionist</button>
+          <button type="button" class="role-pill-btn" id="roleBtn-patient" onclick="openLoginScreen('patient')" title="Switch to Patient">Patient</button>
+        </div>
+
+        <button type="button" class="btn btn-outline btn-sm" onclick="openLoginScreen()" style="border-color:#CBD5E1; color:#0F766E; font-weight:700; font-size:12px; gap:6px;" title="Sign out or switch to another user">
+          🔒 Switch / Logout
+        </button>
+
+        <div class="role-badge">
+          <div class="pulse-dot"></div>
+          <span id="navUserRole">ADMIN</span>
+        </div>
+
+        <div class="user-profile-btn" onclick="openLoginScreen()" title="Click to Switch Account or Login with Password">
+          <div class="avatar" id="navUserAvatar">AD</div>
+          <div style="line-height:1.2;">
+            <div style="font-size:13px; font-weight:600; color:#0F172A;" id="navUserName">Hospital Administrator</div>
+            <div style="font-size:11px; color:#0D9488; font-weight:600;" id="navHospitalName">Utkal Hospital</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page 1: Dashboard -->
+    <section class="page-content active" id="page-dashboard">
+      <div class="welcome-banner">
+        <div>
+          <h1 class="welcome-title" id="dashboardWelcomeTitle">Good afternoon, Clinical Care Team 👋</h1>
+          <p class="welcome-subtitle" id="dashboardWelcomeSubtitle">Here is the real-time operational pulse of <span id="bannerHospitalName" style="font-weight:700; color:#0F766E;">Utkal Hospital & Medical Research Centre</span>.</p>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <button type="button" class="btn btn-primary" id="btnRegisterPatientBanner" onclick="openRegisterPatientModal()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Register Patient
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnBookAppointmentBanner" onclick="openBookModal()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Book Appointment
+          </button>
+        </div>
+      </div>
+
+      <!-- Real Database Alerts Box -->
+      <div id="dashboardAlertsBox" style="margin-bottom:20px;"></div>
+
+      <!-- KPI Grid -->
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <div>
+            <div class="kpi-title" id="kpiTitle1">Active Patients Registered</div>
+            <div class="kpi-value" id="kpiPatients">20</div>
+            <div class="kpi-subtext" id="kpiSub1">↑ Live record count</div>
+          </div>
+          <div class="kpi-icon-wrap" style="background:#CCFBF1; color:#0D9488;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+        </div>
+
+        <div class="card kpi-card">
+          <div>
+            <div class="kpi-title" id="kpiTitle2">Today's Appointments</div>
+            <div class="kpi-value" id="kpiAppointments">4</div>
+            <div class="kpi-subtext" id="kpiSub2" style="color:#3B82F6;">Scheduled & Confirmed</div>
+          </div>
+          <div class="kpi-icon-wrap" style="background:#DBEAFE; color:#3B82F6;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+        </div>
+
+        <div class="card kpi-card">
+          <div>
+            <div class="kpi-title" id="kpiTitle3">Revenue Collected (Month)</div>
+            <div class="kpi-value" id="kpiRevenue">₹1,84,500</div>
+            <div class="kpi-subtext" id="kpiSub3" style="color:#10B981;">↑ Indian Rupees (INR)</div>
+          </div>
+          <div class="kpi-icon-wrap" id="kpiIcon3" style="background:#DEF7EC; color:#10B981;">
+            <span style="font-size:22px; font-weight:800;">₹</span>
+          </div>
+        </div>
+
+        <div class="card kpi-card">
+          <div>
+            <div class="kpi-title" id="kpiTitle4">Critical Lab & Inventory Alerts</div>
+            <div class="kpi-value" id="kpiAlerts">2</div>
+            <div class="kpi-subtext" id="kpiSub4" style="color:#EF4444;">Live DB Flags Requiring Action</div>
+          </div>
+          <div class="kpi-icon-wrap" style="background:#FEE2E2; color:#EF4444;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Columns: Chart & Activity Feed -->
+      <div id="dashboardMainSplit" style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
+        <div class="card" id="clinicalVolumeSection">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div>
+              <h3 style="font-size:16px; font-weight:700; color:#0F172A;" id="volumeChartTitle">Clinical Visits & Volume Analytics</h3>
+              <p style="font-size:12px; color:#64748B;" id="volumeChartSubtitle">Live daily consultations tracked across the past 14 days</p>
+            </div>
+            <span class="badge" style="background:#CCFBF1; color:#0D9488;">Live Telemetry</span>
+          </div>
+          <!-- Dynamic Live Bar Graph Visualization -->
+          <div id="clinicalVolumeChart" style="height:220px; display:flex; align-items:flex-end; gap:8px; padding:20px; background:#F8FAFC; border-radius:12px; justify-content:space-between;">
+            <div style="color:#94A3B8; font-size:12px; margin:auto;">Loading volume telemetry...</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="font-size:16px; font-weight:700; color:#0F172A;" id="activityFeedTitle">Live Clinical Activity Feed</h3>
+            <span class="badge badge-confirmed" style="font-size:11px;">Real-Time</span>
+          </div>
+          <div id="recentActivityFeed">
+            <div style="color:#94A3B8; font-size:12px; text-align:center; padding:20px;">Fetching latest hospital events...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 2: Patients Directory -->
+    <section class="page-content" id="page-patients">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;">Patients EHR Directory</h2>
+          <p style="font-size:13px; color:#64748B;">Complete medical records, allergies, demographics, and visit histories</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openRegisterPatientModal()">+ Register New Patient</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient Details</th>
+                <th>Demographics & City</th>
+                <th>Contact</th>
+                <th>Blood</th>
+                <th>Allergies</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patientsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 3: Appointments & Visits -->
+    <section class="page-content" id="page-appointments">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;" id="appointmentsPageTitle">Appointments & Visits</h2>
+          <p style="font-size:13px; color:#64748B;" id="appointmentsPageSubtitle">Conflict-free doctor scheduling, patient check-ins, and clinical consultation finalization</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openBookModal()">+ Book Appointment</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Patient</th>
+                <th>Attending Doctor</th>
+                <th>Date & Slot</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th id="appointmentsActionHeader">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 4: Doctors & Faculty -->
+    <section class="page-content" id="page-doctors">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:22px; font-weight:800; color:#0F172A;">Medical Faculty & Specialists</h2>
+        <p style="font-size:13px; color:#64748B;">Departmental doctors, credentials, availability slots, and consultation fees in Rupees (₹)</p>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:20px;" id="doctorsGrid"></div>
+    </section>
+
+    <!-- Page 5: Prescriptions -->
+    <section class="page-content" id="page-prescriptions">
+      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;" id="prescriptionsPageTitle">Prescriptions (℞)</h2>
+          <p style="font-size:13px; color:#64748B;">Official clinical prescription orders with downloadable Utkal Hospital PDF reports</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnIssuePrescription" onclick="openCreatePrescriptionModal()">+ Issue New Prescription</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Rx ID</th>
+                <th>Patient</th>
+                <th>Prescribing Doctor</th>
+                <th>Prescription Date</th>
+                <th>Medications Prescribed</th>
+                <th>Official Document</th>
+              </tr>
+            </thead>
+            <tbody id="prescriptionsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 6: Diagnostic Lab Reports -->
+    <section class="page-content" id="page-lab-reports">
+      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;" id="labReportsPageTitle">Diagnostic Lab Tests & Pathology</h2>
+          <p style="font-size:13px; color:#64748B;">Blood work, MRI, CT Scan, X-ray results with live abnormal/critical value flags</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnOrderLabTest" onclick="openOrderLabModal()">+ Order Diagnostic Test</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Test ID</th>
+                <th>Patient</th>
+                <th>Modality</th>
+                <th>Ordered By</th>
+                <th>Scheduled Date</th>
+                <th>Status</th>
+                <th>Findings & Notes</th>
+                <th id="labActionHeader">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="labReportsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 7: Billing & Invoices -->
+    <section class="page-content" id="page-billing">
+      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;" id="billingPageTitle">Billing & Financial Invoices (₹ INR)</h2>
+          <p style="font-size:13px; color:#64748B;" id="billingPageSubtitle">Patient itemized statements, 5% healthcare GST calculations, and digital payment recording</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnCreateInvoice" onclick="openCreateInvoiceModal()">+ Generate New Invoice</button>
+      </div>
+
+      <div class="kpi-grid" id="billingKpiSection" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="kpi-title">Collected Today</div>
+          <div class="kpi-value" id="revToday" style="color:#10B981;">₹0.00</div>
+        </div>
+        <div class="card">
+          <div class="kpi-title">Collected This Month</div>
+          <div class="kpi-value" id="revMonth">₹0.00</div>
+        </div>
+        <div class="card">
+          <div class="kpi-title">Pending Receivables</div>
+          <div class="kpi-value" id="revPending" style="color:#F59E0B;">₹0.00</div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice No</th>
+                <th>Patient</th>
+                <th>Total Bill (₹)</th>
+                <th>Paid (₹)</th>
+                <th>Payment Method</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="billingTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 8: Pharmacy & Inventory -->
+    <section class="page-content" id="page-pharmacy">
+      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#0F172A;">Pharmacy & Inventory Dispensary</h2>
+          <p style="font-size:13px; color:#64748B;">Real-time stock balance, FIFO batch management, and low stock warnings</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnAddMedicine" onclick="openAddMedicineModal()">+ Add New Medicine</button>
+      </div>
+
+      <div id="pharmacyAlertBanner" style="display:none; background:#FEE2E2; border:1px solid #FECACA; color:#991B1B; padding:16px; border-radius:10px; margin-bottom:20px;"></div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Medicine Name</th>
+                <th>Generic Name</th>
+                <th>Category</th>
+                <th>Unit</th>
+                <th>Current Stock</th>
+                <th>Reorder Level</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pharmacyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 9: Settings & Branding -->
+    <section class="page-content" id="page-settings">
+      <h2 style="font-size:22px; font-weight:800; color:#0F172A; margin-bottom:6px;">Hospital Settings & User Profile</h2>
+      <p style="font-size:13px; color:#64748B; margin-bottom:24px;">Configure hospital legal branding, manage your personal profile, and change account password</p>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+        <!-- Card 1: Hospital Name & Branding Customization (Admin Only) -->
+        <div class="card" id="sectionHospitalBranding" style="grid-column: 1 / -1; border-left: 4px solid #0D9488;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <div>
+              <h3 style="font-size:16px; font-weight:700; color:#0F172A;">🏥 Hospital Branding & Institution Setup</h3>
+              <p style="font-size:12px; color:#64748B;">Customize the hospital name and address; updates across the entire app and all prescription letterheads!</p>
+            </div>
+            <span class="badge badge-confirmed">Live System Name</span>
+          </div>
+
+          <form id="hospitalSettingsForm">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+              <div class="form-group">
+                <label class="form-label">Hospital Legal Name</label>
+                <input class="form-control" type="text" id="settingHospitalNameInput" value="Utkal Hospital & Medical Research Centre" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Hospital Tagline / Subtitle</label>
+                <input class="form-control" type="text" id="settingHospitalSubtitleInput" value="Premier Multi-Specialty Tertiary Care & Research Institute" required>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:16px;">
+              <div class="form-group">
+                <label class="form-label">Full Clinical Address</label>
+                <input class="form-control" type="text" id="settingHospitalAddressInput" value="Niladri Vihar, Chandrasekharpur, Bhubaneswar, Odisha 751021">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Emergency Helpline Phone</label>
+                <input class="form-control" type="text" id="settingHospitalPhoneInput" value="+91 674 274 0100 / 1800 120 8855">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Official Email</label>
+                <input class="form-control" type="email" id="settingHospitalEmailInput" value="contact@utkalhospital.com">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Hospital Branding</button>
+          </form>
+        </div>
+
+        <!-- Card 2: Personal Profile Details -->
+        <div class="card">
+          <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">👤 My Account Profile</h3>
+          <form id="profileUpdateForm">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input class="form-control" type="text" id="settingProfileName" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input class="form-control" type="tel" id="settingProfilePhone" placeholder="+91 94370 12345">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address (Login ID)</label>
+              <input class="form-control" type="email" id="settingProfileEmail" disabled style="background:#F1F5F9; cursor:not-allowed;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">System Role</label>
+              <input class="form-control" type="text" id="settingProfileRole" disabled style="background:#F1F5F9; cursor:not-allowed;">
+            </div>
+            <button type="submit" class="btn btn-primary">Update Profile</button>
+          </form>
+        </div>
+
+        <!-- Card 3: Change Password -->
+        <div class="card">
+          <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔒 Security & Password</h3>
+          <form id="changePasswordForm">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input class="form-control" type="password" id="pwdCurrent" placeholder="Enter current password" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input class="form-control" type="password" id="pwdNew" placeholder="Enter new password (min 6 characters)" minlength="6" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input class="form-control" type="password" id="pwdConfirm" placeholder="Re-enter new password" minlength="6" required>
+            </div>
+            <button type="submit" class="btn btn-outline" style="border-color:#0D9488; color:#0D9488;">Update Password</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- Modal 0: Dedicated Role Switch & Login Modal (Requires User ID & Password) -->
+<div class="modal-overlay" id="modalLogin">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;" id="loginModalTitle">🔐 Account Authentication & Role Switch</h3>
+        <p style="font-size:12px; color:#64748B;" id="loginModalSubtitle">Sign in to verify your role and switch views</p>
+      </div>
+      <button type="button" onclick="closeModal('modalLogin')" style="background:none; border:none; font-size:18px; cursor:pointer; color:#64748B;">✕</button>
+    </div>
+    
+    <div style="background:#F1F5F9; border-radius:10px; padding:12px; margin-bottom:14px; border:1px solid #E2E8F0;">
+      <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.5px;">Switch Role Target:</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button type="button" class="btn btn-outline btn-sm" style="font-size:11px; justify-content:flex-start; text-align:left; background:#FFF;" onclick="selectRolePreset('admin')">
+          👑 <strong>Admin</strong> (Superintendent)
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" style="font-size:11px; justify-content:flex-start; text-align:left; background:#FFF;" onclick="selectRolePreset('doctor')">
+          🩺 <strong>Doctor</strong> (Dr. Swastik)
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" style="font-size:11px; justify-content:flex-start; text-align:left; background:#FFF;" onclick="selectRolePreset('receptionist')">
+          📋 <strong>Receptionist</strong> (Front Desk)
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" style="font-size:11px; justify-content:flex-start; text-align:left; background:#FFF;" onclick="selectRolePreset('patient')">
+          🧑‍🦽 <strong>Patient</strong> (Ramesh Pradhan)
+        </button>
+      </div>
+    </div>
+
+    <!-- Live In-Modal Alert Box for invalid credentials -->
+    <div id="loginModalAlert" style="display:none; padding:10px 14px; border-radius:8px; font-size:13px; font-weight:600; margin-bottom:14px;"></div>
+
+    <form id="loginForm">
+      <div class="modal-body" style="padding-top:0;">
+        <div class="form-group">
+          <label class="form-label" for="loginEmailInput">User Email / Login ID</label>
+          <input type="email" class="form-control" id="loginEmailInput" placeholder="name@hospital.com" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" for="loginPasswordInput" style="margin:0;">Password</label>
+            <span id="loginPasswordHint" style="font-size:11px; color:#0D9488; font-weight:600; cursor:pointer;" onclick="fillCurrentPassword()" title="Click to insert demo password">Demo: admin123 (Click to fill)</span>
+          </div>
+          <input type="password" class="form-control" id="loginPasswordInput" placeholder="Enter password to authenticate" required autocomplete="current-password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalLogin')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="loginSubmitBtn">Authenticate & Switch Role →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 1: Book Appointment -->
+<div class="modal-overlay" id="modalBookAppointment">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Book Patient Consultation Slot</h3>
+      <button type="button" onclick="closeModal('modalBookAppointment')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="bookAppointmentForm">
+      <div class="modal-body">
+        <div class="form-group" id="bookPatientGroup">
+          <label class="form-label">Select Patient</label>
+          <select class="form-control" id="bookPatientSelect" required>
+            <option value="">Loading patient directory...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Select Doctor & Department</label>
+          <select class="form-control" id="bookDoctorSelect" required>
+            <option value="">Loading doctor faculty...</option>
+          </select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Appointment Date</label>
+            <input type="date" class="form-control" id="bookDateInput" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Slot</label>
+            <select class="form-control" id="bookSlotSelect" required>
+              <option value="09:00">09:00 AM</option>
+              <option value="09:30">09:30 AM</option>
+              <option value="10:00">10:00 AM</option>
+              <option value="10:30">10:30 AM</option>
+              <option value="11:00">11:00 AM</option>
+              <option value="11:30">11:30 AM</option>
+              <option value="14:00">02:00 PM</option>
+              <option value="14:30">02:30 PM</option>
+              <option value="15:00">03:00 PM</option>
+              <option value="15:30">03:30 PM</option>
+              <option value="16:00">04:00 PM</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Clinical Reason for Visit</label>
+          <input type="text" class="form-control" id="bookReasonInput" placeholder="e.g. Hypertension review, persistent fever, chest tightness" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalBookAppointment')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Confirm & Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Register Patient -->
+<div class="modal-overlay" id="modalRegisterPatient">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Register New Patient (EHR)</h3>
+      <button type="button" onclick="closeModal('modalRegisterPatient')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="registerPatientForm">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Full Legal Name</label>
+          <input type="text" class="form-control" id="regName" placeholder="e.g. Ramesh Chandra Pradhan" required>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" class="form-control" id="regDob" value="1990-01-01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select class="form-control" id="regGender">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Phone Number (+91)</label>
+            <input type="tel" class="form-control" id="regPhone" placeholder="+91 94370 12345" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Blood Group</label>
+            <select class="form-control" id="regBlood">
+              <option value="O+">O+</option>
+              <option value="A+">A+</option>
+              <option value="B+">B+</option>
+              <option value="AB+">AB+</option>
+              <option value="O-">O-</option>
+              <option value="A-">A-</option>
+              <option value="B-">B-</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Residential Address</label>
+          <input type="text" class="form-control" id="regAddress" placeholder="e.g. Bhubaneswar, Odisha" value="Bhubaneswar, Odisha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address (Optional)</label>
+          <input type="email" class="form-control" id="regEmail" placeholder="patient@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Known Allergies</label>
+          <input type="text" class="form-control" id="regAllergies" placeholder="e.g. Penicillin, Sulfa drugs, None" value="None">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalRegisterPatient')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Complete Registration</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 3: Complete Visit Modal (Real Diagnosis recording) -->
+<div class="modal-overlay" id="modalCompleteVisit">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Finalize Consultation & Diagnosis</h3>
+      <button type="button" onclick="closeModal('modalCompleteVisit')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="completeVisitForm">
+      <input type="hidden" id="compAppointmentId">
+      <div class="modal-body">
+        <div id="compVisitSummary" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:8px; margin-bottom:16px; font-size:13px;"></div>
+        <div class="form-group">
+          <label class="form-label">Clinical Diagnosis & Findings</label>
+          <input type="text" class="form-control" id="compDiagnosisInput" placeholder="e.g. Essential Hypertension Stage 1 / Acute Bronchitis" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Consultation Notes & Follow-up Instructions</label>
+          <textarea class="form-control" id="compNotesInput" rows="3" placeholder="Enter clinical advice, lifestyle modifications, or follow-up duration (e.g. Review after 2 weeks)." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalCompleteVisit')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Diagnosis & Mark Completed</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 4: Record Invoice Payment -->
+<div class="modal-overlay" id="modalRecordPayment">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Record Invoice Payment (₹ INR)</h3>
+      <button type="button" onclick="closeModal('modalRecordPayment')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="recordPaymentForm">
+      <input type="hidden" id="payInvoiceId">
+      <div class="modal-body">
+        <div id="payInvoiceSummary" style="background:#F0FDFA; border:1px solid #CCFBF1; padding:14px; border-radius:8px; margin-bottom:16px; font-size:13px;"></div>
+        <div class="form-group">
+          <label class="form-label">Payment Method</label>
+          <select class="form-control" id="payMethodSelect">
+            <option value="cash">Cash Counter</option>
+            <option value="card">Debit / Credit Card (POS)</option>
+            <option value="insurance">Health Insurance Claim</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount Paid in Rupees (₹)</label>
+          <input type="number" step="0.01" class="form-control" id="payAmountInput" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalRecordPayment')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Process Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 5: Pharmacy Stock-In -->
+<div class="modal-overlay" id="modalStockIn">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Receive Pharmacy Batch / Stock-In</h3>
+      <button type="button" onclick="closeModal('modalStockIn')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="stockInForm">
+      <input type="hidden" id="stockMedId">
+      <div class="modal-body">
+        <div id="stockMedSummary" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:8px; margin-bottom:16px; font-size:13px;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Batch Number</label>
+            <input type="text" class="form-control" id="stockBatchNo" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Date</label>
+            <input type="date" class="form-control" id="stockExpiryDate" required>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Quantity to Add</label>
+            <input type="number" min="1" class="form-control" id="stockQuantity" value="100" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Unit Cost (₹)</label>
+            <input type="number" step="0.01" min="0.1" class="form-control" id="stockUnitCost" value="5.00" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Supplier / Distributor</label>
+          <input type="text" class="form-control" id="stockSupplier" value="Utkal Medicos & Pharma Distributors" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalStockIn')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Batch to Stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 6: Update Lab Findings -->
+<div class="modal-overlay" id="modalUpdateLab">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size:16px; font-weight:700;">Update Diagnostic Lab Report Findings</h3>
+      <button type="button" onclick="closeModal('modalUpdateLab')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="updateLabForm">
+      <input type="hidden" id="labTestId">
+      <div class="modal-body">
+        <div id="labTestSummary" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:8px; margin-bottom:16px; font-size:13px;"></div>
+        <div class="form-group">
+          <label class="form-label">Diagnostic Findings & Specimen Results</label>
+          <textarea class="form-control" id="labFindingsInput" rows="3" placeholder="Enter numerical parameters, diagnostic conclusions, reference ranges..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="labStatusSelect">
+            <option value="completed">Completed (Results Verified)</option>
+            <option value="in_progress">In Progress (Specimen Analyzing)</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:14px; background:#FEF2F2; padding:10px 14px; border-radius:8px; border:1px solid #FECACA;">
+          <input type="checkbox" id="labCriticalInput" style="width:18px; height:18px; accent-color:#EF4444; cursor:pointer;">
+          <label for="labCriticalInput" style="font-size:13px; font-weight:600; color:#991B1B; cursor:pointer; margin:0;">
+            ⚠️ Flag as Abnormal / Critical Value (Triggers urgent physician banner)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalUpdateLab')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Findings</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 7: Comprehensive Patient EHR Chart -->
+<div class="modal-overlay" id="modalPatientChart">
+  <div class="modal-card modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;" id="chartPatientTitle">Patient EHR Clinical Chart</h3>
+        <p style="font-size:12px; color:#64748B;" id="chartPatientSubtitle">Medical records, history, consultations, and prescriptions</p>
+      </div>
+      <button type="button" onclick="closeModal('modalPatientChart')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <div class="modal-body" id="patientChartBody" style="max-height:70vh; overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" onclick="closeModal('modalPatientChart')">Close Chart</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 8: Issue New Prescription -->
+<div class="modal-overlay" id="modalCreatePrescription">
+  <div class="modal-card modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;">Issue Clinical Prescription (℞)</h3>
+        <p style="font-size:12px; color:#64748B;">Generate official pharmaceutical order with downloadable PDF letterhead</p>
+      </div>
+      <button type="button" onclick="closeModal('modalCreatePrescription')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="createPrescriptionForm">
+      <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="form-group">
+            <label class="form-label">Select Patient</label>
+            <select class="form-control" id="prescPatientSelect" required></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Consulting Doctor</label>
+            <select class="form-control" id="prescDoctorSelect" required></select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">General Clinical Instructions / Advice</label>
+          <textarea class="form-control" id="prescInstructions" rows="2" placeholder="e.g. Take medications after meals. Drink plenty of warm water. Review after 7 days if symptoms persist." required></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="font-size:14px; font-weight:700; color:#0F172A;">Prescription Line Items</h4>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addPrescriptionItemRow()">+ Add Medicine</button>
+        </div>
+
+        <div id="prescItemsContainer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalCreatePrescription')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save & Issue Prescription (℞)</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 9: Order Diagnostic Lab Test -->
+<div class="modal-overlay" id="modalOrderLabTest">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;">Order Diagnostic Lab Test</h3>
+        <p style="font-size:12px; color:#64748B;">Schedule pathology or radiology examination</p>
+      </div>
+      <button type="button" onclick="closeModal('modalOrderLabTest')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="orderLabTestForm">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Select Patient</label>
+          <select class="form-control" id="orderLabPatientSelect" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ordering Doctor</label>
+          <select class="form-control" id="orderLabDoctorSelect" required></select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Diagnostic Modality / Type</label>
+            <select class="form-control" id="orderLabTypeSelect" required>
+              <option value="blood_work">Blood Work (CBC / LFT / Lipid)</option>
+              <option value="xray">Digital X-Ray</option>
+              <option value="mri">MRI Scan (1.5T / 3T)</option>
+              <option value="ct_scan">CT Scan High Resolution</option>
+              <option value="ultrasound">Ultrasound (USG Abdomen / Pelvis)</option>
+              <option value="biopsy">Tissue Biopsy / Histopathology</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scheduled Examination Date</label>
+            <input type="date" class="form-control" id="orderLabDate" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Clinical Indication / Reason</label>
+          <textarea class="form-control" id="orderLabNotes" rows="2" placeholder="e.g. Rule out pneumonia; persistent dry cough for 3 weeks." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalOrderLabTest')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Schedule Diagnostic Order</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 10: Generate Billing Invoice -->
+<div class="modal-overlay" id="modalCreateInvoice">
+  <div class="modal-card modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;">Generate Billing Invoice (₹ INR)</h3>
+        <p style="font-size:12px; color:#64748B;">Itemized hospital bill with automated 5% GST calculation</p>
+      </div>
+      <button type="button" onclick="closeModal('modalCreateInvoice')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="createInvoiceForm">
+      <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+        <div class="form-group">
+          <label class="form-label">Select Patient</label>
+          <select class="form-control" id="invPatientSelect" required></select>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="font-size:14px; font-weight:700; color:#0F172A;">Billable Line Items</h4>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addInvoiceItemRow()">+ Add Service / Item</button>
+        </div>
+
+        <div id="invItemsContainer" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; background:#F8FAFC; padding:12px; border-radius:8px;">
+          <div class="form-group">
+            <label class="form-label">Discount in Rupees (₹)</label>
+            <input type="number" min="0" step="0.01" class="form-control" id="invDiscountInput" value="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Initial Amount Paid (₹)</label>
+            <input type="number" min="0" step="0.01" class="form-control" id="invAmountPaidInput" value="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <select class="form-control" id="invPaymentMethodSelect">
+              <option value="cash">Cash Counter</option>
+              <option value="card">Debit / Credit Card</option>
+              <option value="insurance">Insurance Claim</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalCreateInvoice')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Generate & Print Invoice</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 11: Add New Medicine to Pharmacy Catalog -->
+<div class="modal-overlay" id="modalAddMedicine">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:17px; font-weight:800; color:#0F172A;">Add Medicine to Catalog</h3>
+        <p style="font-size:12px; color:#64748B;">Register pharmaceutical formulary product</p>
+      </div>
+      <button type="button" onclick="closeModal('modalAddMedicine')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <form id="addMedicineForm">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Brand / Trade Name</label>
+          <input type="text" class="form-control" id="newMedName" placeholder="e.g. Augmentin 625 Duo" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Generic Salt / Composition</label>
+          <input type="text" class="form-control" id="newMedGeneric" placeholder="e.g. Amoxicillin + Clavulanic Acid" required>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Therapeutic Category</label>
+            <input type="text" class="form-control" id="newMedCategory" placeholder="e.g. Antibiotic / Analgesic" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Packaging Unit</label>
+            <input type="text" class="form-control" id="newMedUnit" placeholder="e.g. Strip (10 Tabs) / Bottle" value="Strip (10 Tablets)" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Low-Stock Reorder Threshold</label>
+          <input type="number" min="1" class="form-control" id="newMedReorder" value="50" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalAddMedicine')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save to Formulary</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/static/app/js/app.js?v=20261102_1330"></script>
+</body>
+</html>

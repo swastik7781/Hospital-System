@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hospital_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: hospital_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hospital_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hospital_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: hospital_web
+    restart: unless-stopped
+    command: >
+      sh -c "alembic upgrade head &&
+             python scripts/seed.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@db:5432/hospital_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=hospital-super-secure-production-secret-key-change-in-prod-1234567890
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+
+  celery_worker:
+    build: .
+    container_name: hospital_celery_worker
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@db:5432/hospital_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=hospital-super-secure-production-secret-key-change-in-prod-1234567890
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+
+  celery_beat:
+    build: .
+    container_name: hospital_celery_beat
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app.celery_app beat --loglevel=info
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@db:5432/hospital_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=hospital-super-secure-production-secret-key-change-in-prod-1234567890
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
