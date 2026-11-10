@@ -357,7 +357,7 @@ function applyRolePermissions(role) {
         Book Consultation
       `;
     }
-    if (welcomeTitle) welcomeTitle.innerText = `Welcome, ${appState.user.full_name} 👋`;
+    if (welcomeTitle) welcomeTitle.innerText = `Welcome, ${appState.user.full_name} // Patient Portal`;
     if (welcomeSub) welcomeSub.innerHTML = `Personal Electronic Health Record | <span style="font-weight:700; color:#0F766E;">Utkal Hospital & Medical Research Centre</span>`;
 
     // Patient Dashboard KPIs
@@ -415,7 +415,7 @@ function applyRolePermissions(role) {
       `;
     }
 
-    if (welcomeTitle) welcomeTitle.innerText = `Good day, ${appState.user.full_name} 🩺`;
+    if (welcomeTitle) welcomeTitle.innerText = `Clinical Workstation // ${appState.user.full_name}`;
     if (welcomeSub) welcomeSub.innerHTML = `Physician Clinical Workstation | <span style="font-weight:700; color:#0F766E;">Utkal Hospital</span>`;
 
     if (t1) t1.innerText = 'My Active Patients';
@@ -466,7 +466,7 @@ function applyRolePermissions(role) {
       `;
     }
 
-    if (welcomeTitle) welcomeTitle.innerText = `Front Desk Operations Desk 📋`;
+    if (welcomeTitle) welcomeTitle.innerText = `Front Desk Operations Terminal`;
     if (welcomeSub) welcomeSub.innerHTML = `Reception & Patient Registration | <span style="font-weight:700; color:#0F766E;">Utkal Hospital</span>`;
 
     if (t1) t1.innerText = 'Active Patients Registered';
@@ -520,7 +520,7 @@ function applyRolePermissions(role) {
       `;
     }
 
-    if (welcomeTitle) welcomeTitle.innerText = `Good afternoon, Clinical Care Team 👋`;
+    if (welcomeTitle) welcomeTitle.innerText = `Executive Command Dashboard // Real-Time Telemetry`;
     if (welcomeSub) welcomeSub.innerHTML = `Operational pulse of <span style="font-weight:700; color:#0F766E;">Utkal Hospital & Medical Research Centre</span>`;
 
     if (t1) t1.innerText = 'Active Patients Registered';
