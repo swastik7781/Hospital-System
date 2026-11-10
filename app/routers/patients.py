@@ -18,6 +18,8 @@ from app.schemas.common import PaginatedResponse, MessageResponse
 from app.auth.dependencies import require_roles, get_current_active_user
 from app.crud.patient import (
     get_patient_by_id,
+    get_patient_by_user_id,
+    get_patient_by_email,
     create_patient,
     update_patient,
     soft_delete_patient,
@@ -41,6 +43,50 @@ async def list_portal_accounts_directory(
 ):
     """Retrieve full directory of all patient EHR accounts with their login emails and IDs."""
     return await get_all_patients_portal_directory(db)
+
+
+@router.get("/me", response_model=PatientOut)
+async def get_my_patient_profile(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve or auto-link the clinical EHR profile belonging to the currently logged in patient user."""
+    from app.models.patient import Patient
+    from datetime import date
+    from sqlalchemy import select, or_
+
+    patient = await get_patient_by_user_id(db, current_user.id)
+    if not patient:
+        # Check if an existing unlinked patient record with this email or phone exists
+        stmt = select(Patient).where(
+            or_(Patient.email == current_user.email, Patient.phone == current_user.phone),
+            Patient.is_deleted.is_(False),
+        )
+        patient = (await db.execute(stmt)).scalars().first()
+        if patient:
+            patient.user_id = current_user.id
+            db.add(patient)
+            await db.commit()
+            await db.refresh(patient)
+        else:
+            patient = Patient(
+                full_name=current_user.full_name,
+                date_of_birth=date(1995, 1, 1),
+                gender="Male",
+                phone=current_user.phone or "+91 94370 00000",
+                email=current_user.email,
+                address="Bhubaneswar, Odisha",
+                blood_group="O+",
+                allergies="None",
+                user_id=current_user.id,
+            )
+            db.add(patient)
+            await db.commit()
+            await db.refresh(patient)
+
+    patient.has_portal_account = True
+    patient.portal_username = current_user.email
+    return patient
 
 
 @router.get(

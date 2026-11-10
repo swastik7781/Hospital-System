@@ -44,6 +44,33 @@ async def get_admin_dashboard(
     # ================= ROLE: PATIENT =================
     if current_user.role == UserRole.PATIENT:
         patient = await get_patient_by_user_id(db, current_user.id)
+        if not patient:
+            stmt = select(Patient).where(
+                or_(Patient.email == current_user.email, Patient.phone == current_user.phone),
+                Patient.is_deleted.is_(False),
+            )
+            patient = (await db.execute(stmt)).scalars().first()
+            if patient:
+                patient.user_id = current_user.id
+                db.add(patient)
+                await db.commit()
+                await db.refresh(patient)
+            else:
+                patient = Patient(
+                    full_name=current_user.full_name,
+                    date_of_birth=date(1995, 1, 1),
+                    gender="Male",
+                    phone=current_user.phone or "+91 94370 00000",
+                    email=current_user.email,
+                    address="Bhubaneswar, Odisha",
+                    blood_group="O+",
+                    allergies="None",
+                    user_id=current_user.id,
+                )
+                db.add(patient)
+                await db.commit()
+                await db.refresh(patient)
+
         p_id = patient.id if patient else None
 
         if p_id:

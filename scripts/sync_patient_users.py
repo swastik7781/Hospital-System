@@ -66,3 +66,4 @@ async def sync_patient_users():
 
 if __name__ == "__main__":
     asyncio.run(sync_patient_users())
+

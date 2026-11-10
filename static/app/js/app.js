@@ -173,16 +173,16 @@ function selectLoginGatePreset(role) {
   const hintBadge = document.getElementById('loginGateHintBadge');
   const patientPicker = document.getElementById('gatePatientPickerSection');
 
+  // ALWAYS set the email and password for the selected role
+  if (emailInp) emailInp.value = p.email;
+  if (pwdInp) pwdInp.value = p.pwd;
+  if (hintBadge) hintBadge.innerHTML = `Demo: <strong>${p.pwd}</strong> (Click to fill)`;
+
   if (role === 'patient') {
     if (patientPicker) patientPicker.style.display = 'block';
     populateGatePatientDropdown();
-    if (pwdInp) pwdInp.value = 'patient123';
-    if (hintBadge) hintBadge.innerHTML = `Default: <strong>patient123</strong> (Click to fill)`;
   } else {
     if (patientPicker) patientPicker.style.display = 'none';
-    if (emailInp) emailInp.value = p.email;
-    if (pwdInp) pwdInp.value = '';
-    if (hintBadge) hintBadge.innerHTML = `Demo: <strong>${p.pwd}</strong> (Click to fill)`;
   }
 
   if (pwdInp) pwdInp.focus();
@@ -195,25 +195,27 @@ async function populateGatePatientDropdown(list = null) {
   let patients = list || patientDirectoryCache;
   if (!patients || patients.length === 0) {
     try {
-      patients = await apiRequest('/patients/portal-accounts/directory');
-      patientDirectoryCache = patients || [];
+      const res = await fetch(`${API_BASE}/patients/portal-accounts/directory`);
+      if (res.ok) {
+        patients = await res.json();
+        patientDirectoryCache = patients || [];
+      }
     } catch (e) {
       console.warn('Failed loading gate patients dropdown:', e);
     }
   }
 
+  const options = [];
+  options.push(`<option value="patient@hospital.com" selected>Default: Ramesh Chandra Pradhan (patient@hospital.com • UTK-1001)</option>`);
   if (patients && patients.length > 0) {
-    select.innerHTML = patients.map((p, idx) => `
-      <option value="${p.email || ''}" ${idx === 0 ? 'selected' : ''}>
-        ${p.full_name} (${p.mrn} • ${p.email || 'patient_' + p.patient_id + '@utkalhospital.com'})
-      </option>
-    `).join('');
-
-    const emailInp = document.getElementById('loginGateEmail');
-    if (emailInp && select.value) {
-      emailInp.value = select.value;
+    for (const p of patients) {
+      const email = p.email || `patient_${p.patient_id}@utkalhospital.com`;
+      if (email !== 'patient@hospital.com') {
+        options.push(`<option value="${email}">${p.full_name} (${p.mrn} • ${email})</option>`);
+      }
     }
   }
+  select.innerHTML = options.join('');
 }
 
 function onGatePatientSelected(patientEmail) {
@@ -312,6 +314,9 @@ async function authenticateUser(email, password) {
     closeModal('modalLogin');
     updateUserUI();
     applyRolePermissions(data.user.role);
+    if (data.user.role === 'patient') {
+      await loadMyPatientProfile();
+    }
     showToast(`✓ Welcome ${data.user.full_name} (${data.user.role.toUpperCase()})!`, 'success');
 
     // Switch to dashboard and reload data for new role
@@ -322,6 +327,18 @@ async function authenticateUser(email, password) {
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.innerText = 'Sign In & Access Portal →';
+    }
+  }
+}
+
+// Fetch authenticated patient's clinical profile
+async function loadMyPatientProfile() {
+  if (appState.user && appState.user.role === 'patient') {
+    try {
+      const profile = await apiRequest('/patients/me');
+      appState.myPatientProfile = profile;
+    } catch (e) {
+      console.warn('Could not load patient profile:', e);
     }
   }
 }
@@ -1620,7 +1637,11 @@ function openAddMedicineModal() {
 }
 
 async function ensurePatientsAndDoctorsLoaded() {
-  if (appState.user.role !== 'patient') {
+  if (appState.user && appState.user.role === 'patient') {
+    if (!appState.myPatientProfile) {
+      await loadMyPatientProfile();
+    }
+  } else {
     if (!appState.patients || appState.patients.length === 0) {
       const data = await apiRequest('/patients/?page=1&page_size=50');
       appState.patients = data.items || [];
@@ -1636,16 +1657,19 @@ function populateAppointmentDropdowns() {
   const patSelect = document.getElementById('bookPatientSelect');
   const docSelect = document.getElementById('bookDoctorSelect');
 
-  if (appState.user.role === 'patient') {
-    // If patient, find patient record for self
+  if (appState.user && appState.user.role === 'patient') {
+    // If patient, set to self profile ID
     if (patSelect) {
-      patSelect.innerHTML = `<option value="1" selected>${appState.user.full_name} (Self)</option>`;
+      const myProfile = appState.myPatientProfile;
+      const patientId = (myProfile && myProfile.id) ? myProfile.id : (appState.user.patient_id || 1);
+      const mrnText = (myProfile && myProfile.mrn) ? `MRN: ${myProfile.mrn}` : `MRN: UTK-${1000 + patientId}`;
+      patSelect.innerHTML = `<option value="${patientId}" selected>${appState.user.full_name} (Self • ${mrnText})</option>`;
       patSelect.disabled = true;
     }
   } else {
     if (patSelect) {
       patSelect.disabled = false;
-      if (appState.patients.length > 0) {
+      if (appState.patients && appState.patients.length > 0) {
         patSelect.innerHTML = appState.patients.map(p => `
           <option value="${p.id}">${p.full_name} (MRN: UTK-${1000 + p.id}, ${p.gender})</option>
         `).join('');
@@ -1653,7 +1677,7 @@ function populateAppointmentDropdowns() {
     }
   }
 
-  if (docSelect && appState.doctors.length > 0) {
+  if (docSelect && appState.doctors && appState.doctors.length > 0) {
     docSelect.innerHTML = appState.doctors.map(d => `
       <option value="${d.id}">${d.full_name} — ${d.specialization} (${formatINR(d.consultation_fee)})</option>
     `).join('');
@@ -1697,6 +1721,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeLoginScreen();
     updateUserUI();
     applyRolePermissions(appState.user.role || 'admin');
+    if (appState.user.role === 'patient') {
+      await loadMyPatientProfile();
+    }
     switchPage('dashboard');
   }
 
@@ -1706,7 +1733,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const patientId = parseInt(document.getElementById('bookPatientSelect').value, 10);
+      let patientId;
+      if (appState.user && appState.user.role === 'patient') {
+        patientId = (appState.myPatientProfile && appState.myPatientProfile.id)
+          ? appState.myPatientProfile.id
+          : parseInt(document.getElementById('bookPatientSelect').value, 10);
+      } else {
+        patientId = parseInt(document.getElementById('bookPatientSelect').value, 10);
+      }
       const doctorId = parseInt(document.getElementById('bookDoctorSelect').value, 10);
       const appDate = document.getElementById('bookDateInput').value;
       const slot = document.getElementById('bookSlotSelect').value;
@@ -1768,12 +1802,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadPatientsData();
         loadDashboardData();
         fetchAndRenderPatientDirectory();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
-        loadDashboardData();
       } catch (err) {
         showToast(err.message, 'error');
       }

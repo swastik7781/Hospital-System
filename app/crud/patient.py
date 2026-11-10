@@ -35,6 +35,21 @@ async def get_patient_by_user_id(db: AsyncSession, user_id: int) -> Optional[Pat
     return patient
 
 
+async def get_patient_by_email(db: AsyncSession, email: str) -> Optional[Patient]:
+    if not email:
+        return None
+    result = await db.execute(
+        select(Patient)
+        .options(selectinload(Patient.user))
+        .where(Patient.email == email, Patient.is_deleted.is_(False))
+    )
+    patient = result.scalar_one_or_none()
+    if patient:
+        patient.has_portal_account = bool(patient.user_id)
+        patient.portal_username = patient.email or (patient.user.email if patient.user else None)
+    return patient
+
+
 async def create_patient(db: AsyncSession, patient_in: PatientCreate) -> Patient:
     patient_data = patient_in.model_dump(exclude={"password", "create_portal_account"})
 

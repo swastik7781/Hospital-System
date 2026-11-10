@@ -36,6 +36,41 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
             detail="User with this email already exists",
         )
     user = await create_user(db, user_in)
+
+    # If role is patient, automatically create and link their EHR clinical profile
+    if user.role == UserRole.PATIENT:
+        from app.models.patient import Patient
+        from datetime import date
+        from sqlalchemy import select, or_
+
+        # Check if an existing unlinked patient record with this email or phone exists
+        stmt = select(Patient).where(
+            or_(Patient.email == user.email, Patient.phone == user.phone),
+            Patient.is_deleted.is_(False),
+        )
+        existing_pat = (await db.execute(stmt)).scalars().first()
+        if existing_pat:
+            existing_pat.user_id = user.id
+            if not existing_pat.email:
+                existing_pat.email = user.email
+            db.add(existing_pat)
+            await db.commit()
+        else:
+            new_pat = Patient(
+                full_name=user.full_name,
+                date_of_birth=date(1995, 1, 1),
+                gender="Male",
+                phone=user.phone or "+91 94370 00000",
+                email=user.email,
+                address="Bhubaneswar, Odisha",
+                blood_group="O+",
+                allergies="None",
+                user_id=user.id,
+            )
+            db.add(new_pat)
+            await db.commit()
+            await db.refresh(new_pat)
+
     return user
 
 

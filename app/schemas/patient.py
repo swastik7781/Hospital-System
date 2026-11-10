@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, computed_field
 
 
 class PatientBase(BaseModel):
@@ -43,6 +43,11 @@ class PatientOut(PatientBase):
     updated_at: datetime
     has_portal_account: bool = False
     portal_username: Optional[str] = None
+
+    @computed_field
+    @property
+    def mrn(self) -> str:
+        return f"UTK-{1000 + self.id}"
 
     model_config = ConfigDict(from_attributes=True)
 

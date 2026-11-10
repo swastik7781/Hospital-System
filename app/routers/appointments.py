@@ -74,14 +74,37 @@ async def book_appointment(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Validate patient exists
-    patient = await get_patient_by_id(db, app_in.patient_id)
-    if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-
-    # If patient user, ensure booking for self
-    if current_user.role == UserRole.PATIENT and patient.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot book appointment for another patient")
+    # If current user is a patient, automatically resolve and enforce their own patient EHR record
+    if current_user.role == UserRole.PATIENT:
+        from app.crud.patient import get_patient_by_user_id, get_patient_by_email, create_patient
+        from app.schemas.patient import PatientCreate
+        patient = await get_patient_by_user_id(db, current_user.id)
+        if not patient:
+            patient = await get_patient_by_email(db, current_user.email)
+            if patient:
+                if not patient.user_id:
+                    patient.user_id = current_user.id
+                    await db.commit()
+                    await db.refresh(patient)
+            else:
+                patient = await create_patient(
+                    db,
+                    PatientCreate(
+                        full_name=current_user.full_name,
+                        email=current_user.email,
+                        phone=current_user.phone or "9876543210",
+                        gender="Male",
+                        blood_group="O+",
+                        address="Bhubaneswar, Odisha",
+                    ),
+                    user_id=current_user.id,
+                )
+        app_in.patient_id = patient.id
+    else:
+        # Validate patient exists
+        patient = await get_patient_by_id(db, app_in.patient_id)
+        if not patient:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
     # Validate doctor exists
     doctor = await get_doctor_by_id(db, app_in.doctor_id)
