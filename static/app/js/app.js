@@ -159,6 +159,7 @@ const USER_PRESETS = {
 };
 
 let currentGateRole = 'admin';
+let patientDirectoryCache = [];
 
 function selectLoginGatePreset(role) {
   currentGateRole = role;
@@ -170,17 +171,65 @@ function selectLoginGatePreset(role) {
   const emailInp = document.getElementById('loginGateEmail');
   const pwdInp = document.getElementById('loginGatePassword');
   const hintBadge = document.getElementById('loginGateHintBadge');
+  const patientPicker = document.getElementById('gatePatientPickerSection');
 
-  if (emailInp) emailInp.value = p.email;
-  if (pwdInp) pwdInp.value = '';
-  if (hintBadge) hintBadge.innerHTML = `Demo: <strong>${p.pwd}</strong> (Click to fill)`;
+  if (role === 'patient') {
+    if (patientPicker) patientPicker.style.display = 'block';
+    populateGatePatientDropdown();
+    if (pwdInp) pwdInp.value = 'patient123';
+    if (hintBadge) hintBadge.innerHTML = `Default: <strong>patient123</strong> (Click to fill)`;
+  } else {
+    if (patientPicker) patientPicker.style.display = 'none';
+    if (emailInp) emailInp.value = p.email;
+    if (pwdInp) pwdInp.value = '';
+    if (hintBadge) hintBadge.innerHTML = `Demo: <strong>${p.pwd}</strong> (Click to fill)`;
+  }
+
   if (pwdInp) pwdInp.focus();
+}
+
+async function populateGatePatientDropdown(list = null) {
+  const select = document.getElementById('gatePatientSelect');
+  if (!select) return;
+
+  let patients = list || patientDirectoryCache;
+  if (!patients || patients.length === 0) {
+    try {
+      patients = await apiRequest('/patients/portal-accounts/directory');
+      patientDirectoryCache = patients || [];
+    } catch (e) {
+      console.warn('Failed loading gate patients dropdown:', e);
+    }
+  }
+
+  if (patients && patients.length > 0) {
+    select.innerHTML = patients.map((p, idx) => `
+      <option value="${p.email || ''}" ${idx === 0 ? 'selected' : ''}>
+        ${p.full_name} (${p.mrn} • ${p.email || 'patient_' + p.patient_id + '@utkalhospital.com'})
+      </option>
+    `).join('');
+
+    const emailInp = document.getElementById('loginGateEmail');
+    if (emailInp && select.value) {
+      emailInp.value = select.value;
+    }
+  }
+}
+
+function onGatePatientSelected(patientEmail) {
+  if (!patientEmail) return;
+  const emailInp = document.getElementById('loginGateEmail');
+  const pwdInp = document.getElementById('loginGatePassword');
+  if (emailInp) emailInp.value = patientEmail;
+  if (pwdInp) pwdInp.value = 'patient123';
+  const hintBadge = document.getElementById('loginGateHintBadge');
+  if (hintBadge) hintBadge.innerHTML = `Password: <strong>patient123</strong> (Click to fill)`;
 }
 
 function fillGateDemoPassword() {
   const p = USER_PRESETS[currentGateRole] || USER_PRESETS.admin;
   const pwdInp = document.getElementById('loginGatePassword');
-  if (pwdInp) pwdInp.value = p.pwd;
+  if (pwdInp) pwdInp.value = (currentGateRole === 'patient') ? 'patient123' : p.pwd;
 }
 
 function openLoginScreen(targetRole = null) {
@@ -663,33 +712,50 @@ function renderPatientsTable(list) {
   if (!tbody) return;
 
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#94A3B8;">No matching patient records found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#94A3B8;">No matching patient records found.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = list.map(p => `
-    <tr>
-      <td>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div class="avatar" style="background:#0D9488; color:#FFF; font-weight:700;">${p.full_name[0]}</div>
-          <div>
-            <div style="font-weight:700; color:#0F172A;">${p.full_name}</div>
-            <div style="font-size:11px; color:#64748B;">MRN: UTK-${1000 + p.id}</div>
+  tbody.innerHTML = list.map(p => {
+    const loginUser = p.portal_username || p.email || `patient_${p.id}@utkalhospital.com`;
+    const hasPortal = p.has_portal_account || Boolean(p.user_id);
+    return `
+      <tr>
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar" style="background:#0D9488; color:#FFF; font-weight:700;">${p.full_name[0]}</div>
+            <div>
+              <div style="font-weight:700; color:var(--text-primary);">${p.full_name}</div>
+              <div style="font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">MRN: UTK-${1000 + p.id} (ID: #${p.id})</div>
+            </div>
           </div>
-        </div>
-      </td>
-      <td>
-        <div style="font-weight:600;">${p.gender}</div>
-        <div style="font-size:11px; color:#64748B;">${p.address || 'Odisha, India'} (DOB: ${p.date_of_birth})</div>
-      </td>
-      <td>${p.phone}</td>
-      <td><span class="badge" style="background:#FEE2E2; color:#B91C1C; font-weight:700;">${p.blood_group || 'O+'}</span></td>
-      <td><span style="color:${p.allergies && p.allergies !== 'None' ? '#DC2626' : '#10B981'}; font-size:12px; font-weight:600;">${p.allergies || 'None'}</span></td>
-      <td>
-        <button type="button" class="btn btn-outline btn-sm" onclick="viewPatientDetail(${p.id})">View EHR Chart</button>
-      </td>
-    </tr>
-  `).join('');
+        </td>
+        <td>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--primary);">
+            <code>${loginUser}</code>
+          </div>
+          <div style="margin-top:3px;">
+            <span class="badge ${hasPortal ? 'badge-confirmed' : 'badge-scheduled'}" style="font-size:9px;">
+              ${hasPortal ? 'PORTAL ACTIVE' : 'NO PORTAL'}
+            </span>
+          </div>
+        </td>
+        <td>
+          <div style="font-weight:600;">${p.gender}</div>
+          <div style="font-size:11px; color:var(--text-muted);">${p.address || 'Odisha, India'} (DOB: ${p.date_of_birth})</div>
+        </td>
+        <td>${p.phone}</td>
+        <td><span class="badge" style="background:#FEE2E2; color:#B91C1C; font-weight:700;">${p.blood_group || 'O+'}</span></td>
+        <td><span style="color:${p.allergies && p.allergies !== 'None' ? '#DC2626' : '#10B981'}; font-size:12px; font-weight:600;">${p.allergies || 'None'}</span></td>
+        <td>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="viewPatientDetail(${p.id})">EHR Chart</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="quickLoginAsPatient('${loginUser}', 'patient123')" title="Instantly log in as this patient">Sign In →</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // View Comprehensive Patient EHR Chart Modal
@@ -1284,7 +1350,102 @@ async function openBookModalForDoctor(doctorId) {
 }
 
 function openRegisterPatientModal() {
+  const pwdInput = document.getElementById('regPassword');
+  if (pwdInput && !pwdInput.value) pwdInput.value = 'patient123';
   openModal('modalRegisterPatient');
+}
+
+function fillDefaultRegPassword() {
+  const pInput = document.getElementById('regPassword');
+  if (pInput) pInput.value = 'patient123';
+}
+
+// Patient Directory Modal & Quick Login Handlers
+async function openPatientDirectoryModal() {
+  openModal('modalPatientDirectory');
+  await fetchAndRenderPatientDirectory();
+}
+
+async function fetchAndRenderPatientDirectory() {
+  const tbody = document.getElementById('patientDirectoryTableBody');
+  const countBadge = document.getElementById('patientDirCountBadge');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Fetching patient accounts directory...</td></tr>';
+
+  try {
+    const list = await apiRequest('/patients/portal-accounts/directory');
+    patientDirectoryCache = list || [];
+    if (countBadge) countBadge.innerText = `${patientDirectoryCache.length} Verified Accounts`;
+    renderPatientDirectoryRows(patientDirectoryCache);
+    populateGatePatientDropdown(patientDirectoryCache);
+  } catch (err) {
+    console.error('Error fetching patient directory:', err);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#EF4444;">Failed to load patient directory: ${err.message}</td></tr>`;
+  }
+}
+
+function renderPatientDirectoryRows(list) {
+  const tbody = document.getElementById('patientDirectoryTableBody');
+  if (!tbody) return;
+
+  if (!list || list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No matching patient accounts found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td>
+        <div style="font-weight:700; color:var(--text-primary);">${p.full_name}</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted);">${p.mrn} (ID: #${p.patient_id})</div>
+      </td>
+      <td>
+        <div style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--primary); font-size:12px;">
+          <code>${p.email || 'patient_' + p.patient_id + '@utkalhospital.com'}</code>
+        </div>
+      </td>
+      <td>
+        <div>${p.phone}</div>
+        <div style="font-size:11px; color:var(--text-muted);">${p.gender} • <span style="font-weight:700; color:#DC2626;">${p.blood_group || 'O+'}</span></div>
+      </td>
+      <td>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--text-primary);">
+          <code>${p.default_password || 'patient123'}</code>
+        </div>
+      </td>
+      <td>
+        <span class="badge ${p.has_portal_account ? 'badge-confirmed' : 'badge-scheduled'}" style="font-size:9px;">
+          ${p.has_portal_account ? 'ACTIVE PORTAL' : 'AVAILABLE'}
+        </span>
+      </td>
+      <td>
+        <button type="button" class="btn btn-primary btn-sm" onclick="quickLoginAsPatient('${p.email || 'patient_' + p.patient_id + '@utkalhospital.com'}', '${p.default_password || 'patient123'}')">
+          Sign In As Patient →
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterPatientDirectoryList(q) {
+  const term = (q || '').trim().toLowerCase();
+  if (!term) {
+    renderPatientDirectoryRows(patientDirectoryCache);
+    return;
+  }
+  const filtered = patientDirectoryCache.filter(p =>
+    (p.full_name && p.full_name.toLowerCase().includes(term)) ||
+    (p.email && p.email.toLowerCase().includes(term)) ||
+    (p.mrn && p.mrn.toLowerCase().includes(term)) ||
+    (p.phone && p.phone.toLowerCase().includes(term))
+  );
+  renderPatientDirectoryRows(filtered);
+}
+
+async function quickLoginAsPatient(email, password = 'patient123') {
+  closeModal('modalPatientDirectory');
+  closeLoginScreen();
+  await authenticateUser(email, password);
+  showToast(`Successfully authenticated as Patient: ${email}`, 'success');
 }
 
 // Issue Prescription Modal Controls
@@ -1502,6 +1663,7 @@ function populateAppointmentDropdowns() {
 // Event Listeners and Initialization
 document.addEventListener('DOMContentLoaded', async () => {
   applyHospitalBranding();
+  populateGatePatientDropdown();
 
   // 0. Wire Fullscreen Login Gate Form Submission
   const loginGateForm = document.getElementById('loginGateForm');
@@ -1582,21 +1744,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       const email = document.getElementById('regEmail').value;
       const blood = document.getElementById('regBlood').value;
       const allergies = document.getElementById('regAllergies').value;
+      const password = document.getElementById('regPassword') ? document.getElementById('regPassword').value : 'patient123';
+      const emergency = document.getElementById('regEmergency') ? document.getElementById('regEmergency').value : '';
+      const history = document.getElementById('regMedicalHistory') ? document.getElementById('regMedicalHistory').value : '';
 
       try {
-        await apiRequest('/patients/', 'POST', {
+        const created = await apiRequest('/patients/', 'POST', {
           full_name: name,
           date_of_birth: dob,
           gender: gender,
           phone: phone,
           address: address || 'Bhubaneswar, Odisha',
           email: email || null,
+          password: password || 'patient123',
           blood_group: blood,
           allergies: allergies || 'None',
+          emergency_contact: emergency || null,
+          medical_history: history || null,
+          create_portal_account: true,
         });
-        showToast(`Patient ${name} successfully enrolled into EHR!`, 'success');
+        showToast(`Patient ${name} enrolled! Portal Login: ${email} (Password: ${password || 'patient123'})`, 'success');
         closeModal('modalRegisterPatient');
         loadPatientsData();
+        loadDashboardData();
+        fetchAndRenderPatientDirectory();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
         loadDashboardData();
       } catch (err) {
         showToast(err.message, 'error');
@@ -1966,7 +2142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       const q = e.target.value.trim();
-      if (appState.currentPage === 'patients') {
+      if (appState.currentPage === 'dashboard') {
+        handleDashboardSearch(q);
+      } else if (appState.currentPage === 'patients') {
         loadPatientsData(q);
       } else if (appState.currentPage === 'appointments') {
         renderAppointmentsTable(appState.appointments, q);
@@ -1982,5 +2160,546 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderPharmacyTable(appState.medicines, q);
       }
     });
+
+    // Also trigger on focus if query already exists
+    searchInput.addEventListener('focus', (e) => {
+      const q = e.target.value.trim();
+      if (q && appState.currentPage === 'dashboard') {
+        handleDashboardSearch(q);
+      }
+    });
+  }
+
+  // Load saved theme on DOM ready
+  loadSavedTheme();
+});
+
+// ========================================================
+// AUTH GATE MODE SWITCHER (SIGN IN vs SIGN UP)
+// ========================================================
+
+function switchAuthGateMode(mode) {
+  const tabIn = document.getElementById('authTabSignIn');
+  const tabUp = document.getElementById('authTabSignUp');
+  const secIn = document.getElementById('gateSignInSection');
+  const secUp = document.getElementById('gateSignUpSection');
+  const alertBox = document.getElementById('loginGateAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  if (mode === 'signup') {
+    if (tabIn) tabIn.classList.remove('active');
+    if (tabUp) tabUp.classList.add('active');
+    if (secIn) secIn.style.display = 'none';
+    if (secUp) secUp.style.display = 'block';
+  } else {
+    if (tabIn) tabIn.classList.add('active');
+    if (tabUp) tabUp.classList.remove('active');
+    if (secIn) secIn.style.display = 'block';
+    if (secUp) secUp.style.display = 'none';
+  }
+}
+
+async function handleSignUpSubmit(e) {
+  e.preventDefault();
+  const alertBox = document.getElementById('loginGateAlert');
+  const btn = document.getElementById('signupGateSubmitBtn');
+  if (alertBox) alertBox.style.display = 'none';
+
+  const fullName = document.getElementById('signupFullName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const role = document.getElementById('signupRole').value;
+  const password = document.getElementById('signupPassword').value;
+  const confirmPassword = document.getElementById('signupConfirmPassword').value;
+
+  if (password !== confirmPassword) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.innerHTML = '<strong>Password Mismatch:</strong> Passwords do not match. Please verify.';
+    }
+    return;
+  }
+
+  if (password.length < 6) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.innerHTML = '<strong>Invalid Password:</strong> Password must be at least 6 characters.';
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = 'Creating account...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: fullName,
+        role,
+        phone
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Registration failed. Email may already exist.');
+    }
+
+    showToast(`Account created successfully! Signing you in as ${fullName}...`, 'success');
+    // Automatically authenticate with new credentials
+    await authenticateUser(email, password);
+  } catch (err) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.innerHTML = `<strong>Registration Failed:</strong> ${err.message}`;
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="blade-btn-text">Create Account & Sign In</span> <span class="blade-btn-arrow">→</span>';
+    }
+  }
+}
+
+// ========================================================
+// DASHBOARD LIVE OMNISEARCH & QUICK FIND
+// ========================================================
+
+function handleDashboardSearch(q) {
+  const dropdown = document.getElementById('globalSearchDropdown');
+  if (!dropdown) return;
+
+  if (!q) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    return;
+  }
+
+  const query = q.toLowerCase();
+  
+  // Search Patients
+  const matchPatients = (appState.patients || []).filter(p => 
+    (p.full_name && p.full_name.toLowerCase().includes(query)) ||
+    (p.phone && p.phone.includes(query)) ||
+    (p.blood_group && p.blood_group.toLowerCase().includes(query)) ||
+    (p.city && p.city.toLowerCase().includes(query))
+  ).slice(0, 4);
+
+  // Search Doctors
+  const matchDoctors = (appState.doctors || []).filter(d => 
+    (d.name && d.name.toLowerCase().includes(query)) ||
+    (d.specialization && d.specialization.toLowerCase().includes(query))
+  ).slice(0, 3);
+
+  // Search Appointments
+  const matchAppts = (appState.appointments || []).filter(a => 
+    (a.patient_name && a.patient_name.toLowerCase().includes(query)) ||
+    (a.doctor_name && a.doctor_name.toLowerCase().includes(query)) ||
+    (a.status && a.status.toLowerCase().includes(query))
+  ).slice(0, 3);
+
+  // Search Medicines
+  const matchMeds = (appState.medicines || []).filter(m => 
+    (m.name && m.name.toLowerCase().includes(query)) ||
+    (m.generic_name && m.generic_name.toLowerCase().includes(query)) ||
+    (m.category && m.category.toLowerCase().includes(query))
+  ).slice(0, 3);
+
+  let html = '';
+  const total = matchPatients.length + matchDoctors.length + matchAppts.length + matchMeds.length;
+
+  if (total === 0) {
+    html = `<div class="search-empty">No clinical records found matching "<strong>${q}</strong>"</div>`;
+  } else {
+    html += `<div class="search-header-count">SEARCH RESULTS (${total})</div>`;
+
+    if (matchPatients.length > 0) {
+      html += `<div class="search-cat-title">Patients Directory (${matchPatients.length})</div>`;
+      matchPatients.forEach(p => {
+        html += `
+          <div class="search-result-item" onclick="selectSearchPatient(${p.id})">
+            <div class="search-res-icon">👤</div>
+            <div style="flex:1;">
+              <div class="search-res-name">${p.full_name} <span class="search-badge">${p.blood_group || 'O+'}</span></div>
+              <div class="search-res-sub">Phone: ${p.phone} • ${p.city || 'Bhubaneswar'}</div>
+            </div>
+            <button class="btn btn-outline btn-sm">View Chart</button>
+          </div>
+        `;
+      });
+    }
+
+    if (matchDoctors.length > 0) {
+      html += `<div class="search-cat-title">Consultant Doctors (${matchDoctors.length})</div>`;
+      matchDoctors.forEach(d => {
+        html += `
+          <div class="search-result-item" onclick="selectSearchDoctor('${d.name}')">
+            <div class="search-res-icon" style="color:var(--primary);">🩺</div>
+            <div style="flex:1;">
+              <div class="search-res-name">${d.name}</div>
+              <div class="search-res-sub">${d.specialization} • Fee: ₹${d.consultation_fee}</div>
+            </div>
+            <button class="btn btn-outline btn-sm">View Roster</button>
+          </div>
+        `;
+      });
+    }
+
+    if (matchAppts.length > 0) {
+      html += `<div class="search-cat-title">Appointments & Visits (${matchAppts.length})</div>`;
+      matchAppts.forEach(a => {
+        html += `
+          <div class="search-result-item" onclick="switchPage('appointments')">
+            <div class="search-res-icon" style="color:#3B82F6;">📅</div>
+            <div style="flex:1;">
+              <div class="search-res-name">${a.patient_name || 'Patient'} with ${a.doctor_name || 'Consultant'}</div>
+              <div class="search-res-sub">${a.appointment_date ? a.appointment_date.substring(0, 10) : ''} • Status: ${a.status}</div>
+            </div>
+            <span class="badge badge-${a.status}">${a.status}</span>
+          </div>
+        `;
+      });
+    }
+
+    if (matchMeds.length > 0) {
+      html += `<div class="search-cat-title">Pharmacy Formulary (${matchMeds.length})</div>`;
+      matchMeds.forEach(m => {
+        html += `
+          <div class="search-result-item" onclick="switchPage('pharmacy')">
+            <div class="search-res-icon" style="color:#F59E0B;">💊</div>
+            <div style="flex:1;">
+              <div class="search-res-name">${m.name}</div>
+              <div class="search-res-sub">${m.generic_name || m.category} • Stock: ${m.total_quantity || 0} ${m.unit}</div>
+            </div>
+            <button class="btn btn-outline btn-sm">Dispensary</button>
+          </div>
+        `;
+      });
+    }
+  }
+
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+}
+
+function selectSearchPatient(patientId) {
+  const dropdown = document.getElementById('globalSearchDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  const inp = document.getElementById('globalSearchInput');
+  if (inp) inp.value = '';
+  openPatientChart(patientId);
+}
+
+function selectSearchDoctor(docName) {
+  const dropdown = document.getElementById('globalSearchDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  const inp = document.getElementById('globalSearchInput');
+  if (inp) inp.value = '';
+  switchPage('doctors');
+  loadDoctorsData(docName);
+}
+
+// Close search dropdown on click outside or Escape
+document.addEventListener('click', (e) => {
+  const searchBox = document.querySelector('.search-box');
+  const dropdown = document.getElementById('globalSearchDropdown');
+  if (searchBox && dropdown && !searchBox.contains(e.target)) {
+    dropdown.style.display = 'none';
   }
 });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const dropdown = document.getElementById('globalSearchDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+  }
+});
+
+// ========================================================
+// THEME CUSTOMIZATION ENGINE (LIGHT, DARK, RED-BLACK, NEON-BLUE, CUSTOM)
+// ========================================================
+
+const THEME_CONFIGS = {
+  light: {
+    name: 'Clinical Light',
+    bodyClass: 'theme-light',
+    vars: {
+      '--primary': '#0D9488',
+      '--primary-hover': '#0F766E',
+      '--secondary': '#2563EB',
+      '--secondary-hover': '#1D4ED8',
+      '--bg-main': '#F1F5F9',
+      '--bg-card': '#FFFFFF',
+      '--bg-subtle': '#F8FAFC',
+      '--text-primary': '#0F172A',
+      '--text-secondary': '#334155',
+      '--text-muted': '#64748B',
+      '--border-light': '#E2E8F0',
+      '--laser-primary': '#0D9488',
+      '--terminal-black': '#0F172A',
+    }
+  },
+  dark: {
+    name: 'Midnight Dark',
+    bodyClass: 'theme-dark',
+    vars: {
+      '--primary': '#00E5FF',
+      '--primary-hover': '#00B4D8',
+      '--secondary': '#38BDF8',
+      '--secondary-hover': '#0284C7',
+      '--bg-main': '#070B10',
+      '--bg-card': '#0E141E',
+      '--bg-subtle': '#131B27',
+      '--text-primary': '#F8FAFC',
+      '--text-secondary': '#CBD5E1',
+      '--text-muted': '#64748B',
+      '--border-light': '#1C2838',
+      '--laser-primary': '#00E5FF',
+      '--terminal-black': '#05080D',
+    }
+  },
+  'red-black': {
+    name: 'Trauma Red & Black',
+    bodyClass: 'theme-red-black',
+    vars: {
+      '--primary': '#EF4444',
+      '--primary-hover': '#DC2626',
+      '--secondary': '#B91C1C',
+      '--secondary-hover': '#991B1B',
+      '--bg-main': '#080808',
+      '--bg-card': '#111111',
+      '--bg-subtle': '#181818',
+      '--text-primary': '#F8FAFC',
+      '--text-secondary': '#E5E7EB',
+      '--text-muted': '#9CA3AF',
+      '--border-light': '#262626',
+      '--laser-primary': '#EF4444',
+      '--terminal-black': '#000000',
+    }
+  },
+  'neon-blue': {
+    name: 'Neon & Blue',
+    bodyClass: 'theme-neon-blue',
+    vars: {
+      '--primary': '#00F5A0',
+      '--primary-hover': '#00D88B',
+      '--secondary': '#2563EB',
+      '--secondary-hover': '#1D4ED8',
+      '--bg-main': '#050B14',
+      '--bg-card': '#0A1220',
+      '--bg-subtle': '#0F1A2C',
+      '--text-primary': '#F8FAFC',
+      '--text-secondary': '#CBD5E1',
+      '--text-muted': '#64748B',
+      '--border-light': '#172437',
+      '--laser-primary': '#00F5A0',
+      '--terminal-black': '#03070E',
+    }
+  },
+  'amber-charcoal': {
+    name: 'Amber & Charcoal',
+    bodyClass: 'theme-amber-charcoal',
+    vars: {
+      '--primary': '#F59E0B',
+      '--primary-hover': '#D97706',
+      '--secondary': '#EAB308',
+      '--secondary-hover': '#CA8A04',
+      '--bg-main': '#0D0F12',
+      '--bg-card': '#14171D',
+      '--bg-subtle': '#1B2028',
+      '--text-primary': '#F8FAFC',
+      '--text-secondary': '#D1D5DB',
+      '--text-muted': '#6B7280',
+      '--border-light': '#252B36',
+      '--laser-primary': '#F59E0B',
+      '--terminal-black': '#080A0C',
+    }
+  },
+  'royal-cyan': {
+    name: 'Royal Navy & Cyan',
+    bodyClass: 'theme-royal-cyan',
+    vars: {
+      '--primary': '#38BDF8',
+      '--primary-hover': '#0284C7',
+      '--secondary': '#6366F1',
+      '--secondary-hover': '#4F46E5',
+      '--bg-main': '#0A1120',
+      '--bg-card': '#0F1A30',
+      '--bg-subtle': '#162444',
+      '--text-primary': '#F8FAFC',
+      '--text-secondary': '#CBD5E1',
+      '--text-muted': '#64748B',
+      '--border-light': '#1E3258',
+      '--laser-primary': '#38BDF8',
+      '--terminal-black': '#060B14',
+    }
+  }
+};
+
+function applyPresetTheme(themeKey) {
+  const cfg = THEME_CONFIGS[themeKey] || THEME_CONFIGS.light;
+  const root = document.documentElement;
+
+  for (const [prop, val] of Object.entries(cfg.vars)) {
+    root.style.setProperty(prop, val);
+  }
+
+  document.body.className = cfg.bodyClass;
+
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+  const activeCard = document.getElementById(`themeCard-${themeKey}`);
+  if (activeCard) activeCard.classList.add('active');
+
+  const badge = document.getElementById('activeThemeBadge');
+  if (badge) badge.innerText = `Active: ${cfg.name}`;
+
+  localStorage.setItem('utkal_hospital_theme', JSON.stringify({
+    mode: 'preset',
+    key: themeKey,
+    name: cfg.name,
+    vars: cfg.vars,
+    bodyClass: cfg.bodyClass
+  }));
+
+  showToast(`Theme switched to ${cfg.name}`, 'success');
+}
+
+function updateCustomColorPreview() {
+  const p = document.getElementById('pickerPrimaryColor').value;
+  const s = document.getElementById('pickerSecondaryColor').value;
+  const textP = document.getElementById('textPrimaryColor');
+  const textS = document.getElementById('textSecondaryColor');
+  if (textP) textP.value = p;
+  if (textS) textS.value = s;
+}
+
+function syncColorInput(type, val) {
+  if (type === 'primary') {
+    const picker = document.getElementById('pickerPrimaryColor');
+    if (picker && /^#[0-9A-Fa-f]{6}$/.test(val)) picker.value = val;
+  } else if (type === 'secondary') {
+    const picker = document.getElementById('pickerSecondaryColor');
+    if (picker && /^#[0-9A-Fa-f]{6}$/.test(val)) picker.value = val;
+  }
+}
+
+function applyCustomThemeFromStudio() {
+  const pColor = document.getElementById('pickerPrimaryColor').value || '#0D9488';
+  const sColor = document.getElementById('pickerSecondaryColor').value || '#2563EB';
+  const bgMode = document.getElementById('selectBackgroundMode').value || 'light';
+
+  const root = document.documentElement;
+  root.style.setProperty('--primary', pColor);
+  root.style.setProperty('--primary-hover', pColor);
+  root.style.setProperty('--laser-primary', pColor);
+  root.style.setProperty('--secondary', sColor);
+  root.style.setProperty('--secondary-hover', sColor);
+
+  let bgMain = '#F1F5F9';
+  let bgCard = '#FFFFFF';
+  let bgSubtle = '#F8FAFC';
+  let textP = '#0F172A';
+  let textS = '#334155';
+  let borderL = '#CBD5E1';
+  let termB = '#0F172A';
+  let bClass = 'theme-custom-light';
+
+  if (bgMode === 'dark') {
+    bgMain = '#070B10';
+    bgCard = '#0D131C';
+    bgSubtle = '#121A26';
+    textP = '#F8FAFC';
+    textS = '#CBD5E1';
+    borderL = '#1C2838';
+    termB = '#05080D';
+    bClass = 'theme-custom-dark';
+  } else if (bgMode === 'black') {
+    bgMain = '#000000';
+    bgCard = '#0D0D0D';
+    bgSubtle = '#161616';
+    textP = '#FFFFFF';
+    textS = '#E5E7EB';
+    borderL = '#262626';
+    termB = '#000000';
+    bClass = 'theme-custom-black';
+  }
+
+  root.style.setProperty('--bg-main', bgMain);
+  root.style.setProperty('--bg-card', bgCard);
+  root.style.setProperty('--bg-subtle', bgSubtle);
+  root.style.setProperty('--text-primary', textP);
+  root.style.setProperty('--text-secondary', textS);
+  root.style.setProperty('--border-light', borderL);
+  root.style.setProperty('--terminal-black', termB);
+
+  document.body.className = bClass;
+
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+  const badge = document.getElementById('activeThemeBadge');
+  if (badge) badge.innerText = `Active: Custom (${pColor} / ${bgMode.toUpperCase()})`;
+
+  localStorage.setItem('utkal_hospital_theme', JSON.stringify({
+    mode: 'custom',
+    pColor,
+    sColor,
+    bgMode,
+    bClass,
+    vars: {
+      '--primary': pColor,
+      '--primary-hover': pColor,
+      '--laser-primary': pColor,
+      '--secondary': sColor,
+      '--secondary-hover': sColor,
+      '--bg-main': bgMain,
+      '--bg-card': bgCard,
+      '--bg-subtle': bgSubtle,
+      '--text-primary': textP,
+      '--text-secondary': textS,
+      '--border-light': borderL,
+      '--terminal-black': termB,
+    }
+  }));
+
+  showToast('Custom hospital theme applied successfully!', 'success');
+}
+
+function resetToDefaultTheme() {
+  localStorage.removeItem('utkal_hospital_theme');
+  applyPresetTheme('light');
+}
+
+function loadSavedTheme() {
+  const saved = localStorage.getItem('utkal_hospital_theme');
+  if (!saved) return;
+  try {
+    const data = JSON.parse(saved);
+    const root = document.documentElement;
+    if (data.vars) {
+      for (const [prop, val] of Object.entries(data.vars)) {
+        root.style.setProperty(prop, val);
+      }
+    }
+    if (data.bodyClass || data.bClass) {
+      document.body.className = data.bodyClass || data.bClass;
+    }
+    const badge = document.getElementById('activeThemeBadge');
+    if (badge && data.name) badge.innerText = `Active: ${data.name}`;
+
+    if (data.mode === 'preset' && data.key) {
+      document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+      const activeCard = document.getElementById(`themeCard-${data.key}`);
+      if (activeCard) activeCard.classList.add('active');
+    }
+  } catch (e) {
+    console.warn('Error applying saved theme:', e);
+  }
+}
+
+// Call immediately on script execution
+loadSavedTheme();

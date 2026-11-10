@@ -150,6 +150,21 @@ async def seed(drop_first: bool = False):
         ]
         patient_objs = []
         for name, dob, gender, ph, em, bg, allergies, u_id, addr in patient_names:
+            # Create user account for every patient so all patients can log in immediately
+            assigned_user_id = u_id
+            if not assigned_user_id:
+                patient_u = User(
+                    email=em,
+                    hashed_password=get_password_hash("patient123"),
+                    full_name=name,
+                    role=UserRole.PATIENT,
+                    is_active=True,
+                    phone=ph,
+                )
+                db.add(patient_u)
+                await db.flush()
+                assigned_user_id = patient_u.id
+
             pat = Patient(
                 full_name=name,
                 date_of_birth=datetime.strptime(dob, "%Y-%m-%d").date(),
@@ -161,7 +176,7 @@ async def seed(drop_first: bool = False):
                 allergies=allergies,
                 medical_history="Diagnosed with Type-2 Diabetes in 2022; regular HbA1c screening." if "Das" in name or "Pradhan" in name else "Seasonal allergic rhinitis; no chronic comorbidities.",
                 emergency_contact="+91 94370 00000 (Spouse/Next of Kin)",
-                user_id=u_id,
+                user_id=assigned_user_id,
             )
             db.add(pat)
             patient_objs.append(pat)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,8 @@ from app.schemas.patient import (
     PatientCreate,
     PatientUpdate,
     PatientDashboardSummary,
+    PatientPortalAccountCreate,
+    PatientPortalAccountDirectoryItem,
 )
 from app.schemas.appointment import AppointmentOut
 from app.schemas.common import PaginatedResponse, MessageResponse
@@ -21,11 +23,24 @@ from app.crud.patient import (
     soft_delete_patient,
     get_patients_paginated,
     get_patient_dashboard_summary,
+    create_or_link_patient_portal_account,
+    get_all_patients_portal_directory,
 )
 from app.crud.appointment import get_appointments_paginated
 from app.utils.pagination import paginate
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
+
+
+@router.get(
+    "/portal-accounts/directory",
+    response_model=List[PatientPortalAccountDirectoryItem],
+)
+async def list_portal_accounts_directory(
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve full directory of all patient EHR accounts with their login emails and IDs."""
+    return await get_all_patients_portal_directory(db)
 
 
 @router.get(
@@ -64,6 +79,28 @@ async def register_patient(
     db: AsyncSession = Depends(get_db),
 ):
     return await create_patient(db, patient_in)
+
+
+@router.post(
+    "/{patient_id}/portal-account",
+    response_model=PatientOut,
+    dependencies=[Depends(require_roles([UserRole.ADMIN, UserRole.RECEPTIONIST]))],
+)
+async def create_patient_portal_login(
+    patient_id: int,
+    account_in: PatientPortalAccountCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    patient = await get_patient_by_id(db, patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    await create_or_link_patient_portal_account(
+        db,
+        patient,
+        password=account_in.password or "patient123",
+        email=account_in.email,
+    )
+    return patient
 
 
 @router.get("/{patient_id}", response_model=PatientOut)

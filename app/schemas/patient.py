@@ -18,6 +18,8 @@ class PatientBase(BaseModel):
 
 class PatientCreate(PatientBase):
     user_id: int | None = None
+    password: Optional[str] = None
+    create_portal_account: bool = True
 
 
 class PatientUpdate(BaseModel):
@@ -39,8 +41,27 @@ class PatientOut(PatientBase):
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
+    has_portal_account: bool = False
+    portal_username: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PatientPortalAccountCreate(BaseModel):
+    password: Optional[str] = "patient123"
+    email: Optional[EmailStr] = None
+
+
+class PatientPortalAccountDirectoryItem(BaseModel):
+    patient_id: int
+    mrn: str
+    full_name: str
+    email: Optional[str] = None
+    phone: str
+    gender: str
+    blood_group: Optional[str] = None
+    has_portal_account: bool
+    default_password: str = "patient123"
 
 
 class PatientDashboardSummary(BaseModel):
